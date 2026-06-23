@@ -379,8 +379,9 @@ function makeEnemy(f,st,round){const sc=scaleFor(f);
     mag:Math.round(18*sc*1.6),spd:Math.round(10+f*0.3),crit:12,statuses:[],alive:true,
     gold:Math.round(300*sc),xp:Math.round(260*sc)};}
   const elite=round===st.rounds,fam=st.fam,em=elite?1.7:1,name=(elite?"Elite ":"")+pick(fam.names);
+  const hpBase = Math.round(52*sc*em);
   return{name,art:ART[fam.art],elem:fam.elem,boss:false,elite,
-    hp:Math.round(34*sc*em),maxhp:Math.round(34*sc*em),atk:Math.round(10*sc*em),def:Math.round(6*sc*em),
+    hp:hpBase,maxhp:hpBase,atk:Math.round(10*sc*em),def:Math.round(6*sc*em),
     mag:Math.round(8*sc*em),spd:Math.round(7+f*0.2+(elite?3:0)),crit:6,statuses:[],alive:true,
     gold:Math.round(rnd(9,15)*sc*em),xp:Math.round(rnd(11,17)*sc*em)};}
 function enemyCount(f,st,round){if(st.kind==="boss")return 1;if(round===st.rounds)return 1;
@@ -395,17 +396,19 @@ function curStage(){return G.battle.plan[G.battle.stage];}
 function bl(h){const b=G.battle;b.log.unshift(h);if(b.log.length>40)b.log.pop();}
 function spawnWave(first){const b=G.battle,st=curStage(),rr=b.round+1,cnt=enemyCount(b.floor,st,rr);
   b.enemies=[];for(let i=0;i<cnt;i++)b.enemies.push(makeEnemy(b.floor,st,rr));
-  b.phase="choose";b.selTarget=0;b.log=[];
+  b.phase="choose";b.selTarget=0;b.log=[];b.firstTurn=true;
   bl(`<span class="dim">— Floor ${b.floor} · Stage ${b.stage+1}/${b.plan.length} · Wave ${st.kind==="boss"?"BOSS":rr+"/"+st.rounds} —</span>`);
   startPlayerTurn();}
 function livingEnemies(){return G.battle.enemies.filter(e=>e.alive);}
 function selEnemy(){const b=G.battle;return (b.enemies[b.selTarget]&&b.enemies[b.selTarget].alive)?b.enemies[b.selTarget]:livingEnemies()[0];}
 
-function startPlayerTurn(){const h=H();G.battle.busy=false;
-  // resource regen
-  if(h.cls==="mage") h.res=clamp(h.res+Math.round(h.derived.resMax*(0.15+h.derived.bon.manaregen/100)),0,h.derived.resMax);
-  if(h.cls==="rogue") h.res=clamp(h.res+6,0,h.derived.resMax);
-  render();}
+function startPlayerTurn(){const h=H();const b=G.battle;G.battle.busy=false;
+  if(!b.firstTurn){
+    // resource regen during an ongoing battle turn
+    if(h.cls==="mage") h.res=clamp(h.res+Math.round(h.derived.resMax*(0.15+h.derived.bon.manaregen/100)),0,h.derived.resMax);
+    if(h.cls==="rogue") h.res=clamp(h.res+6,0,h.derived.resMax);
+  }
+  b.firstTurn=false;render();}
 
 function hasStatus(u,t){return (u.statuses||[]).find(s=>s.type===t);}
 function statusVal(u,t){const s=hasStatus(u,t);return s?s.value:0;}
@@ -614,8 +617,6 @@ function spoilsContinue(){const b=G.battle;if(!b||b.phase!=="spoils")return;b.ph
   if(b.round>=st.rounds){
     b.round=0;G.round=0;b.stage++;G.stage=b.stage;
     if(b.stage>=b.plan.length){floorComplete();return;}
-    // small breather restore for mage/rogue
-    if(H().cls!=="warrior")H().res=H().derived.resMax;
     bl(`<span class="dim">Stage cleared. Next: ${stageLabel(b.plan[b.stage])}.</span>`);
     save();
   }
@@ -841,7 +842,7 @@ function cmdPanel(){const h=H();const en=selEnemy();
     ${en?`<div class="small" style="margin-bottom:6px">Target <b class="${en.elem}">${en.name}</b> ${EI[en.elem]} — best vs it: <span class="good">${EI[weakElem(en.elem)]} ${cap(weakElem(en.elem))}</span> <span class="dim tiny">(avoid ${EI[resElem(en.elem)]})</span></div>`:''}
     <div class="grid2">
       <button class="primary" onclick="act('attack')">⚔ Attack ${EI[weaponElem()]}${effBadge(weaponElem(),en)}${h.cls==="warrior"?' <span class="tiny">+Fury</span>':h.cls==="rogue"?' <span class="tiny">+◆</span>':''}</button>
-      <button onclick="act('defend')">🛡 Brace</button>
+      <button style="display:none" onclick="act('defend')">🛡 Brace</button>
     </div>
     <div class="small dim" style="margin:7px 0 3px">Skills</div>
     <div class="grid2">
