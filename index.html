@@ -453,7 +453,9 @@ function act(kind,payload){const b=G.battle;if(!b||b.busy||b.phase!=="choose")re
     if(h.cls==="warrior")h.res=clamp(h.res+12,0,h.derived.resMax);
     if(h.cls==="rogue"){h.combo=clamp(h.combo+1,0,5);}
     const r=hitEnemy(en,{type:"phys",mult:1});
-    bl(`You strike ${en.name}: <b>${r.dmg}</b>${r.isCrit?' <span class="gold">CRIT</span>':''}${tagMult(r)}${r.dead?' <span class="bad">✝</span>':''}${h.cls==="rogue"?' <span class="gold">◆</span>':''}`);
+    let msg=`You strike ${en.name}: <b>${r.dmg}</b>${r.isCrit?' <span class="gold">CRIT</span>':''}${tagMult(r)}${r.dead?' <span class="bad">✝</span>':''}${h.cls==="rogue"?' <span class="gold">◆</span>':''}`;
+    if(r.mult>1)msg+=` <span class="good">★ WEAK!</span>`;
+    bl(msg);
   } else if(kind==="defend"){
     if(h.cls==="warrior")h.res=clamp(h.res+18,0,h.derived.resMax);
     if(h.cls==="rogue")h.res=clamp(h.res+8,0,h.derived.resMax);
@@ -497,6 +499,8 @@ function doDamageSkill(n){const h=H(),s=h.derived;
     let opt={type:n.type,elem:n.elem||(n.type==="magic"?h.elem:weaponElem()),mult:n.mult||0,critBonus:n.critBonus,finisher:n.finisher};
     if(n.finisher){opt.mult=(n.perCombo||0)*comboSpent;}
     const r=hitEnemy(en,opt);
+    // mana bonus on weak kill for mage
+    if(h.cls==="mage"&&r.mult>1&&r.dead&&h.res<h.derived.resMax){h.res=clamp(h.res+5,0,h.derived.resMax);}
     // effects
     if(n.eff){for(const k in n.eff){
       if(k==="weaken")addStatus(en,"weaken",n.eff[k].v,n.eff[k].t);
@@ -510,7 +514,7 @@ function doDamageSkill(n){const h=H(),s=h.derived;
     if(s.bon.conduit&&!n.aoe&&r.mult>1){livingEnemies().forEach(o=>{if(o!==en){
       const sd=Math.round(r.dmg*0.5);o.hp-=sd;if(o.hp<=0){o.hp=0;o.alive=false;}
       fxOnEnemy(o,sd+'<span class="sub"> ⚡</span>',n.elem||"lightning","✦",n.elem||"lightning");}});}
-    txt.push(`${en.name} <b>${r.dmg}</b>${r.isCrit?' <span class="gold">CRIT</span>':''}${tagMult(r)}${!en.alive?' ✝':''}`);
+    txt.push(`${en.name} <b>${r.dmg}</b>${r.isCrit?' <span class="gold">CRIT</span>':''}${tagMult(r)}${!en.alive?' <span class="bad">✝</span>':''}${r.mult>1&&en.alive?' <span class="good">WEAK</span>':''}${r.mult>1&&r.dead&&h.cls==="mage"?' <span class="gold">+5 mana</span>':''}`);
   }
   if(n.combo)h.combo=clamp(h.combo+n.combo,0,5);
   if(n.finisher)h.combo=0;
@@ -560,7 +564,8 @@ function enemiesPhase(){const h=H(),s=h.derived;
     // undying keystone
     if(s.bon.undying&&h.hp/s.maxhp<0.30)dmg=Math.round(dmg*0.6);
     // shield soak
-    let msg=`<span class="bad">${en.name} hits you for ${dmg}.</span>`;
+    const willCast=en.boss&&Math.random()<.4;
+    let msg=`<span class="bad">${en.name} ${willCast?'<span class="fire">casts</span>':'attacks'} for ${dmg}.</span>`;
     let absorbed=0;
     if(h.shield>0){const ab=Math.min(h.shield,dmg);h.shield-=ab;dmg-=ab;absorbed=ab;if(ab)msg+=` <span class="water">(${ab} absorbed)</span>`;}
     h.hp-=dmg;
@@ -842,7 +847,7 @@ function cmdPanel(){const h=H();const en=selEnemy();
     ${en?`<div class="small" style="margin-bottom:6px">Target <b class="${en.elem}">${en.name}</b> ${EI[en.elem]} — best vs it: <span class="good">${EI[weakElem(en.elem)]} ${cap(weakElem(en.elem))}</span> <span class="dim tiny">(avoid ${EI[resElem(en.elem)]})</span></div>`:''}
     <div class="grid2">
       <button class="primary" onclick="act('attack')">⚔ Attack ${EI[weaponElem()]}${effBadge(weaponElem(),en)}${h.cls==="warrior"?' <span class="tiny">+Fury</span>':h.cls==="rogue"?' <span class="tiny">+◆</span>':''}</button>
-      <button style="display:none" onclick="act('defend')">🛡 Brace</button>
+      <button onclick="act('defend')">🛡 Brace <span class="tiny dim">-50%</span></button>
     </div>
     <div class="small dim" style="margin:7px 0 3px">Skills</div>
     <div class="grid2">
