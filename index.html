@@ -700,11 +700,23 @@ function comboPips(){const n=H().combo;let h='<span class="combo">';for(let i=0;
 
 function render(){if(!G&&!["title","codex","save","classpick"].includes(SCREEN))SCREEN="title";
   const m={title:scrTitle,classpick:scrClassPick,camp:scrCamp,battle:scrBattle,hero:scrHero,skills:scrSkills,
-    inv:scrInv,shop:scrShop,codex:scrCodex,save:scrSave,floorclear:scrFloorClear,defeat:scrDefeat,victory:scrVictory};
+    inv:scrInv,shop:scrShop,codex:scrCodex,save:scrSave,floorclear:scrFloorClear,defeat:scrDefeat,victory:scrVictory,dialog:scrDialog};
   $("app").innerHTML=(m[SCREEN]||scrTitle)();
   if(SCREEN==="battle"&&G&&G.battle&&G.battle.phase!=="spoils"&&G.battle.fx&&G.battle.fx.length){
     const q=G.battle.fx;G.battle.fx=[];setTimeout(()=>runFx(q),30);
   }}
+
+function scrDialog(){return `<div class="nav">
+    <button onclick="go(SD.prev||'camp')">‹ Back</button>
+  </div>
+  <div class="panel" style="max-width:500px;margin:12px auto">
+    <h2 class="center">${SD.title||'Confirm'}</h2>
+    <p class="small dim" style="margin:8px 0 12px">${SD.body||''}</p>
+    <div class="grid2">
+      <button class="full" onclick="SD.cancel&&SD.cancel()">${SD.cancelLabel||'Cancel'}</button>
+      <button class="primary full" onclick="SD.ok&&SD.ok()">${SD.okLabel||'OK'}</button>
+    </div>
+  </div>`;}
 
 /* ---- title ---- */
 function scrTitle(){const has=(storageOK()&&localStorage.getItem(SAVEKEY))||MEM;
@@ -777,9 +789,20 @@ function scrCamp(){const f=G.floor,plan=floorPlan(f),boss=f%10===0;
 function stageLabel(s){if(s.kind==="boss")return `<span class="bad">${s.boss.name} ${EI[s.boss.elem]}</span>`;
   return `<span class="${s.fam.elem}">${cap(s.fam.fam)} ${EI[s.fam.elem]}</span>`;}
 function beginFloor(){restoreFull();G.round=0;startFloor();go("battle");}
+function confirmWindow(title,msg,okLabel,okFn,cancelLabel,cancelFn){
+  SD={prev:SCREEN,title,body:msg,okLabel:okLabel||"OK",ok:okFn,cancel:cancelFn||(()=>go(SD.prev||"camp"))};
+  go("dialog",SD);
+}
 function retreat(){const b=G.battle;if(!b)return go("camp");
-  if(!confirm(`Retreat to camp? You'll restart Stage ${b.stage+1} from its first wave. Cleared stages and the loot you've earned are kept.`))return;
-  G.stage=b.stage;G.round=0;G.battle=null;derive();restoreFull();save();go("camp");}
+  confirmWindow(
+    "Retreat to Camp",
+    `You'll restart Stage ${b.stage+1} from its first wave. Cleared stages and the loot you've earned are kept.`,
+    "Retreat",
+    ()=>{G.stage=b.stage;G.round=0;G.battle=null;derive();restoreFull();save();go("camp");},
+    "Stay",
+    ()=>go("battle")
+  );
+}
 
 /* ---- battle ---- */
 function scrBattle(){const b=G.battle;if(!b)return scrCamp();const h=H(),s=h.derived,st=curStage(),ri2=resInfo();
