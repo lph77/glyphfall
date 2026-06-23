@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>GLYPHFALL v0.1</title>
+<title>GLYPHFALL v0.2</title>
 <style>
   :root{
     --bg:#0a0b10; --panel:#12141d; --panel2:#1a1d2a; --line:#262b3d; --line2:#3a4068;
@@ -121,9 +121,9 @@
 <div id="toast"></div>
 <script>
 /* ===========================================================================
-   GLYPHFALL v0.1  — one hero, six elements, one hundred floors.
+   GLYPHFALL v0.2  — one hero, six elements, one hundred floors.
    =========================================================================== */
-const VERSION="0.1", SAVEKEY="glyphfall_v0_1";
+const VERSION="0.2", SAVEKEY="glyphfall_v0_2";
 const $=(id)=>document.getElementById(id);
 const rnd=(a,b)=>Math.random()*(b-a)+a, ri=(a,b)=>Math.floor(rnd(a,b+1));
 const pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -648,7 +648,7 @@ function sellItem(it){const val=Math.round(20*RAR_MULT[it.rar]*(1+it.up*0.3));
   G.gold+=val;derive();toast("Sold "+val+"g");save();render();}
 function slotCard(it,card){if((it.cards||[]).length>=it.slots){toast("No free slot");return;}
   it.cards=it.cards||[];it.cards.push(card);G.cards=G.cards.filter(c=>c.uid!==card.uid);derive();save();render();}
-function unslotCard(it,card){it.cards=it.cards.filter(c=>c.uid!==card.uid);G.cards.push(card);derive();save();render();}
+function unslotCard(it,card){if(!it||!card||!Array.isArray(it.cards))return;it.cards=it.cards.filter(c=>c.uid!==card.uid);G.cards.push(card);derive();save();render();}
 function findItem(uid){return G.bag.find(x=>x.uid===uid)||Object.values(H().equip).find(e=>e&&e.uid===uid);}
 
 /* ===========================================================================
@@ -934,7 +934,7 @@ function itemLine(it){const eq=Object.values(H().equip).some(e=>e&&e.uid===it.ui
       <button style="padding:3px 8px" onclick="doUpgrade('${it.uid}')">⬆ +1 (${upgradeCost(it).gold}g·${upgradeCost(it).mats}m)</button>
       <button class="bad" style="padding:3px 8px" onclick="doSell('${it.uid}')">Sell</button>
     </div></div>`;}
-function slotChips(it){let h="";for(let i=0;i<it.slots;i++){const c=it.cards[i];
+function slotChips(it){const cards=it.cards||[];let h="";for(let i=0;i<it.slots;i++){const c=cards[i];
   h+=`<span class="slotchip ${c?'filled':''}" ${c?`onclick="popCard('${it.uid}','${c.uid}')" title="remove ${c.desc}"`:''}>${c?c.icon:'·'}</span>`;}return h;}
 function invCards(){if(!G.cards.length)return `<p class="dim center">No spare cards. Slot them via the Equipped tab.</p>`;
   return `<p class="tiny dim">Tap "Slot ▸" then choose a free slot on your gear.</p>`+
@@ -948,15 +948,15 @@ function invEquip(){const insert=SD.insert,h=H();
       <div class="small"><b>${it.name}</b>${it.up?` +${it.up}`:''} ${it.elem?elemTag(it.elem):''} <span class="tiny dim">(${slot})</span></div>
       <div class="tiny" style="margin-top:3px">Slots: ${slotEquipChips(it,insert)}</div></div>`;}).join("")
     +(insert?`<p class="tiny gold center">Pick a ＋ slot above to insert the card.</p>`:'');}
-function slotEquipChips(it,insert){let h="";for(let i=0;i<it.slots;i++){const c=it.cards[i];
+function slotEquipChips(it,insert){const cards=it.cards||[];let h="";for(let i=0;i<it.slots;i++){const c=cards[i];
   if(c)h+=`<span class="slotchip filled" onclick="popCard('${it.uid}','${c.uid}')" title="${c.desc} — remove">${c.icon}</span>`;
   else h+=`<span class="slotchip" ${insert?`onclick="insertCard('${it.uid}','${insert}')" style="border-color:var(--gold);cursor:pointer"`:''}>＋</span>`;}
-  return h+(it.cards.length?` <span class="tiny dim">${it.cards.map(c=>c.desc).join(', ')}</span>`:'');}
-function doEquip(uid){equipItem(G.bag.find(x=>x.uid===uid));save();render();toast("Equipped");}
+  return h+(cards.length?` <span class="tiny dim">${cards.map(c=>c.desc).join(', ')}</span>`:'');}
+function doEquip(uid){const it=G.bag.find(x=>x.uid===uid); if(!it){toast('Item not found'); return;} equipItem(it);save();render();toast("Equipped");}
 function doUpgrade(uid){upgradeItem(findItem(uid));}
-function doSell(uid){const it=G.bag.find(x=>x.uid===uid);if(confirm("Sell "+it.name+"?"))sellItem(it);}
-function popCard(itUid,cUid){const it=findItem(itUid);unslotCard(it,it.cards.find(x=>x.uid===cUid));toast("Removed");}
-function insertCard(itUid,cUid){const it=findItem(itUid),c=G.cards.find(x=>x.uid===cUid);if(!c)return;slotCard(it,c);SD.insert=null;toast("Slotted");}
+function doSell(uid){const it=G.bag.find(x=>x.uid===uid);if(!it) return; if(confirm("Sell "+it.name+"?"))sellItem(it);}
+function popCard(itUid,cUid){const it=findItem(itUid);if(!it||!Array.isArray(it.cards))return;const card=it.cards.find(x=>x.uid===cUid);if(!card)return;unslotCard(it,card);toast("Removed");}
+function insertCard(itUid,cUid){const it=findItem(itUid),c=G.cards.find(x=>x.uid===cUid);if(!it||!c)return;slotCard(it,c);SD.insert=null;toast("Slotted");}
 
 /* ---- shop ---- */
 const SHOP=[
